@@ -1,0 +1,19 @@
+{
+    "src": {
+        "js": "src/**/*.js",
+        "json": "src/**/*.json",
+        "glsl": "src/**/*.{vert,frag}"
+    },
+    "dest": "build/",
+    "namespace": "ym",
+    "target": "standalone",
+    "serverUrl": null,
+    "asyncMap": false,
+    "initialMap": null,
+    "fallbackFilter": null,
+    "fallbackModule": null,
+    "store": "solid",
+    "preload": [],
+    "concatTo": "all.js",
+    "minify": false
+}
