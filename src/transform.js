@@ -163,7 +163,7 @@ ym.modules.define('transform', [], function (provide) {
          * @returns {Number[]} Result of multiplication.
          */
         multiplyMatrices: function () {
-            var result = arguments[arguments.length - 1],
+            var result = arguments[arguments.length - 1].slice(),
                 r1i, r2i, r3i, r4i,
                 matrix;
 

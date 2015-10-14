@@ -70,6 +70,10 @@ ym.modules.define('Uniform', [
 
             setFloat2Array: function (data) {
                 this._gl.uniform2fv(this._glHandler, data);
+            },
+
+            setFloat3: function (v0, v1, v2) {
+                this._gl.uniform3f(this._glHandler, v0, v1, v2);
             }
         }
     ));

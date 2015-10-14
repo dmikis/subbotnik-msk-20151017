@@ -4,9 +4,9 @@ ym.modules.define('EXT_disjoint_timer_query', [
     'Program',
     'transform',
 
-    'logo.json',
-    'logo.vert',
-    'logo.frag'
+    'EXT_disjoint_timer_query.logo.json',
+    'EXT_disjoint_timer_query.logo.vert',
+    'EXT_disjoint_timer_query.logo.frag'
 ], function (provide, Buffer, MedianFilter, Program, transform, logoGeometry, vsSrc, fsSrc) {
     var gl = document.querySelector('#gl').getContext('webgl'),
         glW = gl.drawingBufferWidth,
