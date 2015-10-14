@@ -1,4 +1,4 @@
-ym.modules.define('main', [
+ym.modules.define('EXT_disjoint_timer_query', [
     'Buffer',
     'MedianFilter',
     'Program',
