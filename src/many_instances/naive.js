@@ -46,9 +46,9 @@ ym.modules.define('many_instances.naive', [
                 instances[i]     = -10 + 0.5 * x;
                 instances[i + 1] = -10 + 0.5 * y;
                 instances[i + 2] = -10 + 0.5 * z;
-                instances[i + 3] = x / 40,
-                instances[i + 4] = y / 40,
-                instances[i + 5] = z / 40
+                instances[i + 3] = Math.random();
+                instances[i + 4] = Math.random();
+                instances[i + 5] = Math.random();
             }
         }
     }
