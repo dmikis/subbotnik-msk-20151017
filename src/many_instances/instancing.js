@@ -1,19 +1,33 @@
 ym.modules.define('many_instances.instancing', [
     'Buffer',
+    'GpuCpuTimeBar',
     'Program',
     'transform',
 
     'many_instances.instancing.vert',
     'many_instances.instancing.frag'
-], function (provide, Buffer, Program, transform, vsSrc, fsSrc) {
+], function (provide, Buffer, GpuCpuTimeBar, Program, transform, vsSrc, fsSrc) {
     var gl = document.querySelector('#gl').getContext('webgl'),
         glW = gl.drawingBufferWidth,
         glH = gl.drawingBufferHeight,
+
         glAspect = glW / glH,
-        instancingExt = gl.getExtension('ANGLE_instanced_arrays');
+
+        instancingExt = gl.getExtension('ANGLE_instanced_arrays'),
+        timerExt = gl.getExtension('EXT_disjoint_timer_query'),
+        queries = [],
+        timeBar = new GpuCpuTimeBar(
+            document.querySelector('#timeBar'),
+            2000, // µs
+            GpuCpuTimeBar.GPU_CPU_ORDER
+        );
 
     if (!instancingExt) {
         throw new Error('This demo relies upon ANGLE_instanced_arrays and can\'t run w/o it')
+    }
+
+    if (!timerExt) {
+        throw new Error('This demo relies upon EXT_disjoint_timer_query and can\'t run w/o it')
     }
 
     gl.clearColor(1, 1, 1, 1);
@@ -107,9 +121,39 @@ ym.modules.define('many_instances.instancing', [
 
     var scaleMatrix = transform.isotropicScale(0.1);
     function render (t) {
+        var query;
+
+        if (!gl.getParameter(timerExt.GPU_DISJOINT_EXT)) {
+            if (
+                queries.length &&
+                timerExt.getQueryObjectEXT(
+                    queries[0],
+                    timerExt.QUERY_RESULT_AVAILABLE_EXT
+                )
+            ) {
+                query = queries.shift();
+                timeBar.setTime(
+                    timerExt.getQueryObjectEXT(
+                        query,
+                        timerExt.QUERY_RESULT_EXT
+                    ) * 1e-3,
+                    GpuCpuTimeBar.GPU_TIME
+                );
+                timerExt.deleteQueryEXT(query);
+            }
+        } else {
+            while ((query = queries.shift())) {
+                timerExt.deleteQueryEXT(query);
+            }
+        }
+
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
         var rotationMatrix = transform.rotateY(3e-3 * t);
+
+        query = timerExt.createQueryEXT();
+        timerExt.beginQueryEXT(timerExt.TIME_ELAPSED_EXT, query);
+        var cpuTimeStart = performance.now();
 
         rotationScaleUniform.setMatrix4(transform.multiplyMatrices(
             transform.rotateY(3e-3 * t),
@@ -122,6 +166,13 @@ ym.modules.define('many_instances.instancing', [
             6,
             instancesNum
         );
+
+        timeBar.setTime((performance.now() - cpuTimeStart) * 1e3, GpuCpuTimeBar.CPU_TIME);
+        timerExt.endQueryEXT(timerExt.TIME_ELAPSED_EXT);
+
+        queries.push(query);
+
+        timeBar.draw();
 
         requestAnimationFrame(render);
     }

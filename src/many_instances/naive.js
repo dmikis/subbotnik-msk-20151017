@@ -1,16 +1,29 @@
 ym.modules.define('many_instances.naive', [
     'Buffer',
+    'GpuCpuTimeBar',
     'Program',
     'transform',
 
     'many_instances.naive.vert',
     'many_instances.naive.frag'
-], function (provide, Buffer, Program, transform, vsSrc, fsSrc) {
+], function (provide, Buffer, GpuCpuTimeBar, Program, transform, vsSrc, fsSrc) {
     var gl = document.querySelector('#gl').getContext('webgl'),
         glW = gl.drawingBufferWidth,
         glH = gl.drawingBufferHeight,
 
-        glAspect = glW / glH;
+        glAspect = glW / glH,
+
+        timerExt = gl.getExtension('EXT_disjoint_timer_query'),
+        queries = [],
+        timeBar = new GpuCpuTimeBar(
+            document.querySelector('#timeBar'),
+            2e5, // µs
+            GpuCpuTimeBar.CPU_GPU_ORDER
+        );
+
+    if (!timerExt) {
+        throw new Error('This demo relies upon EXT_disjoint_timer_query and can\'t run w/o it')
+    }
 
     gl.clearColor(1, 1, 1, 1);
 
@@ -65,9 +78,39 @@ ym.modules.define('many_instances.naive', [
         scaleMatrix = transform.isotropicScale(0.1);
 
     function render (t) {
+        var query;
+
+        if (!gl.getParameter(timerExt.GPU_DISJOINT_EXT)) {
+            if (
+                queries.length &&
+                timerExt.getQueryObjectEXT(
+                    queries[0],
+                    timerExt.QUERY_RESULT_AVAILABLE_EXT
+                )
+            ) {
+                query = queries.shift();
+                timeBar.setTime(
+                    timerExt.getQueryObjectEXT(
+                        query,
+                        timerExt.QUERY_RESULT_EXT
+                    ) * 1e-3,
+                    GpuCpuTimeBar.GPU_TIME
+                );
+                timerExt.deleteQueryEXT(query);
+            }
+        } else {
+            while ((query = queries.shift())) {
+                timerExt.deleteQueryEXT(query);
+            }
+        }
+
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
         var rotationMatrix = transform.rotateY(3e-3 * t);
+
+        query = timerExt.createQueryEXT();
+        timerExt.beginQueryEXT(timerExt.TIME_ELAPSED_EXT, query);
+        var cpuTimeStart = performance.now();
 
         for (var i = 0; i < instances.length; i += 6) {
             mvpUniform.setMatrix4(transform.multiplyMatrices(
@@ -88,6 +131,13 @@ ym.modules.define('many_instances.naive', [
 
             gl.drawArrays(gl.TRIANGLES, 0, 6);
         }
+
+        timeBar.setTime((performance.now() - cpuTimeStart) * 1e3, GpuCpuTimeBar.CPU_TIME);
+        timerExt.endQueryEXT(timerExt.TIME_ELAPSED_EXT);
+
+        queries.push(query);
+
+        timeBar.draw();
 
         requestAnimationFrame(render);
     }

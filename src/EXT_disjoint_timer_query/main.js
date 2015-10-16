@@ -1,26 +1,25 @@
 ym.modules.define('EXT_disjoint_timer_query', [
     'Buffer',
-    'MedianFilter',
+    'GpuCpuTimeBar',
     'Program',
     'transform',
 
     'EXT_disjoint_timer_query.logo.json',
     'EXT_disjoint_timer_query.logo.vert',
     'EXT_disjoint_timer_query.logo.frag'
-], function (provide, Buffer, MedianFilter, Program, transform, logoGeometry, vsSrc, fsSrc) {
+], function (provide, Buffer, GpuCpuTimeBar, Program, transform, logoGeometry, vsSrc, fsSrc) {
     var gl = document.querySelector('#gl').getContext('webgl'),
         glW = gl.drawingBufferWidth,
         glH = gl.drawingBufferHeight,
         glAspect = glW / glH,
 
-        chartCtx = document.querySelector('#chart').getContext('2d'),
-        chartW = chartCtx.canvas.width,
-        chartH = chartCtx.canvas.height,
-
         timerExt = gl.getExtension('EXT_disjoint_timer_query'),
         queries = [],
-        gpuTimeFilter = new MedianFilter({windowSize: 25}),
-        cpuTimeFilter = new MedianFilter({windowSize: 25});
+        timeBar = new GpuCpuTimeBar(
+            document.querySelector('#timeBar'),
+            200, // µs
+            GpuCpuTimeBar.GPU_CPU_ORDER
+        );
 
     if (!timerExt) {
         throw new Error('This demo relies upon EXT_disjoint_timer_query and can\'t run w/o it')
@@ -69,27 +68,31 @@ ym.modules.define('EXT_disjoint_timer_query', [
 
     program.use();
 
-    var cpuTime = 0, gpuTime = 0;
     function render (t) {
         var query;
 
-        if (
-            queries.length &&
-            timerExt.getQueryObjectEXT(
-                queries[0],
-                timerExt.QUERY_RESULT_AVAILABLE_EXT
-            )
-        ) {
-            query = queries.shift();
-            if (!gl.getParameter(timerExt.GPU_DISJOINT_EXT)) {
-                gpuTime = gpuTimeFilter.filter(
+        if (!gl.getParameter(timerExt.GPU_DISJOINT_EXT)) {
+            if (
+                queries.length &&
+                timerExt.getQueryObjectEXT(
+                    queries[0],
+                    timerExt.QUERY_RESULT_AVAILABLE_EXT
+                )
+            ) {
+                query = queries.shift();
+                timeBar.setTime(
                     timerExt.getQueryObjectEXT(
                         query,
                         timerExt.QUERY_RESULT_EXT
-                    ) * 1e-3
+                    ) * 1e-3,
+                    GpuCpuTimeBar.GPU_TIME
                 );
+                timerExt.deleteQueryEXT(query);
             }
-            timerExt.deleteQueryEXT(query);
+        } else {
+            while ((query = queries.shift())) {
+                timerExt.deleteQueryEXT(query);
+            }
         }
 
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -109,26 +112,12 @@ ym.modules.define('EXT_disjoint_timer_query', [
             gl.UNSIGNED_SHORT,
             0
         );
-        cpuTime = cpuTimeFilter.filter((performance.now() - cpuTimeStart) * 1e3);
+        timeBar.setTime((performance.now() - cpuTimeStart) * 1e3, GpuCpuTimeBar.CPU_TIME);
         timerExt.endQueryEXT(timerExt.TIME_ELAPSED_EXT);
 
         queries.push(query);
 
-        chartCtx.clearRect(0, 0, chartW, chartH);
-        chartCtx.fillStyle = 'blue';
-        chartCtx.fillRect(
-            0,
-            chartH * (200 - gpuTime) * 5e-3,
-            chartW,
-            chartH * gpuTime * 5e-3
-        );
-        chartCtx.fillStyle = 'green';
-        chartCtx.fillRect(
-            0,
-            chartH * (200 - cpuTime) * 5e-3,
-            chartW,
-            chartH * cpuTime * 5e-3
-        );
+        timeBar.draw();
 
         requestAnimationFrame(render);
     }
