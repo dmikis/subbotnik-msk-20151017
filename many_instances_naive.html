@@ -1,0 +1,32 @@
+<script src="build/all.js"></script>
+<script>ym.modules.require('many_instances.naive').done();</script>
+<style>
+    canvas {
+        border: 1px solid black;
+    }
+
+    #timeBarWrap {
+        position: relative;
+        display: inline-block;
+    }
+
+    #timeBarMax, #timeBarMin {
+        position: absolute;
+        font-size: 30pt;
+        left: 40px;
+    }
+
+    #timeBarMax {
+        top: 0;
+    }
+
+    #timeBarMin {
+        bottom: 0;
+    }
+</style>
+<canvas id="gl" width="800px" height="600px"></canvas>
+<div id="timeBarWrap">
+    <canvas id="timeBar" width="30px" height="600px"></canvas>
+    <span id="timeBarMax">200ms</span>
+    <span id="timeBarMin">0</span>
+</div>
