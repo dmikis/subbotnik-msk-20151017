@@ -2449,6 +2449,40 @@ ym.modules.define('Buffer', [
     ));
 });
 
+ym.modules.define('debounce', [], function (provide) {
+    /**
+     * Оборачивает переданную функцию в функцию-обертку, которая при каждом вызове
+     * откладывает исполнение переданной на переданный интервал.
+     *
+     * @ignore
+     * @function
+     * @static
+     * @name panorama.util.debounce
+     * @param {Number} delay Интерал в миллисекундах.
+     * @param {Function} fn Фукнция.
+     * @param {Object} [thisArg] Объект, на который будет ссылаться
+     *      <codeph>this</codeph> в вызванной функции.
+     * @returns {Function} Функция-обертка.
+     */
+    provide(function debounce (delay, fn, thisArg) {
+        var timeout, wrapperArgs = [], wrapperThisArg;
+
+        function timeoutCallback () {
+            fn.apply(thisArg || wrapperThisArg, wrapperArgs);
+        }
+
+        return function () {
+            wrapperArgs.length = arguments.length;
+            for (var i = 0; i < wrapperArgs.length; ++i) {
+                wrapperArgs[i] = arguments[i];
+            }
+            wrapperThisArg = this;
+            clearTimeout(timeout);
+            timeout = setTimeout(timeoutCallback, delay);
+        };
+    });
+});
+
 ym.modules.define('EXT_disjoint_timer_query.logo.frag',[],function (provide) {
 provide("#ifdef GL_FRAGMENT_PRECISION_HIGH\n    precision highp float;\n#else\n    precision mediump float;\n#endif\n\nvarying vec3 color;\n\nvoid main(void) {\n    gl_FragColor = vec4(color, 1);\n}\n");
 });
@@ -2508,6 +2542,18 @@ ym.modules.define('GpuCpuTimeBar', [
     }));
 });
 
+ym.modules.define('many_instances.instancing.frag',[],function (provide) {
+provide("#ifdef GL_FRAGMENT_PRECISION_HIGH\n    precision highp float;\n#else\n    precision mediump float;\n#endif\n\nvarying vec3 color;\n\nvoid main(void) {\n    gl_FragColor = vec4(color, 1);\n}\n");
+});
+ym.modules.define('many_instances.instancing.vert',[],function (provide) {
+provide("attribute vec3 vertexPosition;\nattribute vec3 instancePosition;\nattribute vec3 instanceColor;\n\nuniform mat4 perspective;\nuniform mat4 rotationScale;\n\nvarying vec3 color;\n\nvoid main(void) {\n    vec4 position = rotationScale * vec4(vertexPosition, 1);\n    position.xyz += instancePosition;\n    gl_Position = perspective * position;\n    color = instanceColor;\n}\n");
+});
+ym.modules.define('many_instances.naive.frag',[],function (provide) {
+provide("#ifdef GL_FRAGMENT_PRECISION_HIGH\n    precision highp float;\n#else\n    precision mediump float;\n#endif\n\nuniform vec3 color;\n\nvoid main(void) {\n    gl_FragColor = vec4(color, 1);\n}\n");
+});
+ym.modules.define('many_instances.naive.vert',[],function (provide) {
+provide("attribute vec3 vertexPosition;\n\nuniform mat4 mvp;\n\nvoid main(void) {\n    gl_Position = mvp * vec4(vertexPosition, 1);\n}\n");
+});
 ym.modules.define('MedianFilter', [
     'debounce',
     'util.defineClass'
@@ -2709,133 +2755,6 @@ ym.modules.define('Program', [
     ));
 });
 
-/**
- * @fileOverview
- * Helper for working with shader uniform parameters.
- */
-ym.modules.define('Uniform', [
-    'util.defineClass'
-], function (provide, defineClass) {
-    /**
-     * Constructs wrapper for a handler.
-     *
-     * @ignore
-     * @class Uniform
-     * @name Uniform
-     * @param {WebGLRenreringContext} gl Shader program WebGL context.
-     * @param {WebGLUniformLocation} handler Uniform parameter location.
-     * @param {WebGLProgram} programHandler Program uniform belongs to.
-     */
-    function Uniform (gl, handler, programHandler) {
-        if (ym.env.debug) {
-            if (!handler) {
-                throw new Error('Uniform location must be not-null');
-            }
-        }
-        this._gl = gl;
-        this._glHandler = handler;
-        this._program = programHandler;
-    }
-
-    provide(defineClass(
-        Uniform,
-        /** @lends Uniform.prototype */
-        {
-            /**
-             * @returns {*} Current uniform value.
-             */
-            getValue: function () {
-                return this._gl.getUniform(this._program, this._glHandler);
-            },
-
-            /**
-             * Set a 4 by 4 matrix as a value of the parameter.
-             *
-             * @param {Number} matrix The matrix.
-             */
-            setMatrix4: function (matrix) {
-                this._gl.uniformMatrix4fv(this._glHandler, false, matrix);
-            },
-
-            /**
-             * Set a texture unit to the parameter.
-             *
-             * @param {GLenum} unit The texture unit.
-             */
-            setTexture: function (unit) {
-                this.setInt(unit - this._gl.TEXTURE0);
-            },
-
-            /**
-             * Set integer value to the uniform.
-             *
-             * @param {Number} i Value.
-             */
-            setInt: function (i) {
-                this._gl.uniform1i(this._glHandler, i);
-            },
-
-            setFloat: function (f) {
-                this._gl.uniform1f(this._glHandler, f);
-            },
-
-            setFloat2Array: function (data) {
-                this._gl.uniform2fv(this._glHandler, data);
-            },
-
-            setFloat3: function (v0, v1, v2) {
-                this._gl.uniform3f(this._glHandler, v0, v1, v2);
-            }
-        }
-    ));
-});
-
-ym.modules.define('debounce', [], function (provide) {
-    /**
-     * Оборачивает переданную функцию в функцию-обертку, которая при каждом вызове
-     * откладывает исполнение переданной на переданный интервал.
-     *
-     * @ignore
-     * @function
-     * @static
-     * @name panorama.util.debounce
-     * @param {Number} delay Интерал в миллисекундах.
-     * @param {Function} fn Фукнция.
-     * @param {Object} [thisArg] Объект, на который будет ссылаться
-     *      <codeph>this</codeph> в вызванной функции.
-     * @returns {Function} Функция-обертка.
-     */
-    provide(function debounce (delay, fn, thisArg) {
-        var timeout, wrapperArgs = [], wrapperThisArg;
-
-        function timeoutCallback () {
-            fn.apply(thisArg || wrapperThisArg, wrapperArgs);
-        }
-
-        return function () {
-            wrapperArgs.length = arguments.length;
-            for (var i = 0; i < wrapperArgs.length; ++i) {
-                wrapperArgs[i] = arguments[i];
-            }
-            wrapperThisArg = this;
-            clearTimeout(timeout);
-            timeout = setTimeout(timeoutCallback, delay);
-        };
-    });
-});
-
-ym.modules.define('many_instances.instancing.frag',[],function (provide) {
-provide("#ifdef GL_FRAGMENT_PRECISION_HIGH\n    precision highp float;\n#else\n    precision mediump float;\n#endif\n\nvarying vec3 color;\n\nvoid main(void) {\n    gl_FragColor = vec4(color, 1);\n}\n");
-});
-ym.modules.define('many_instances.instancing.vert',[],function (provide) {
-provide("attribute vec3 vertexPosition;\nattribute vec3 instancePosition;\nattribute vec3 instanceColor;\n\nuniform mat4 perspective;\nuniform mat4 rotationScale;\n\nvarying vec3 color;\n\nvoid main(void) {\n    vec4 position = rotationScale * vec4(vertexPosition, 1);\n    position.xyz += instancePosition;\n    gl_Position = perspective * position;\n    color = instanceColor;\n}\n");
-});
-ym.modules.define('many_instances.naive.frag',[],function (provide) {
-provide("#ifdef GL_FRAGMENT_PRECISION_HIGH\n    precision highp float;\n#else\n    precision mediump float;\n#endif\n\nuniform vec3 color;\n\nvoid main(void) {\n    gl_FragColor = vec4(color, 1);\n}\n");
-});
-ym.modules.define('many_instances.naive.vert',[],function (provide) {
-provide("attribute vec3 vertexPosition;\n\nuniform mat4 mvp;\n\nvoid main(void) {\n    gl_Position = mvp * vec4(vertexPosition, 1);\n}\n");
-});
 /**
  * @fileOverview
  * 3D transforms helpers: matrix generators, multiplication, etc.
@@ -3060,6 +2979,87 @@ ym.modules.define('transform', [], function (provide) {
     });
 });
 
+/**
+ * @fileOverview
+ * Helper for working with shader uniform parameters.
+ */
+ym.modules.define('Uniform', [
+    'util.defineClass'
+], function (provide, defineClass) {
+    /**
+     * Constructs wrapper for a handler.
+     *
+     * @ignore
+     * @class Uniform
+     * @name Uniform
+     * @param {WebGLRenreringContext} gl Shader program WebGL context.
+     * @param {WebGLUniformLocation} handler Uniform parameter location.
+     * @param {WebGLProgram} programHandler Program uniform belongs to.
+     */
+    function Uniform (gl, handler, programHandler) {
+        if (ym.env.debug) {
+            if (!handler) {
+                throw new Error('Uniform location must be not-null');
+            }
+        }
+        this._gl = gl;
+        this._glHandler = handler;
+        this._program = programHandler;
+    }
+
+    provide(defineClass(
+        Uniform,
+        /** @lends Uniform.prototype */
+        {
+            /**
+             * @returns {*} Current uniform value.
+             */
+            getValue: function () {
+                return this._gl.getUniform(this._program, this._glHandler);
+            },
+
+            /**
+             * Set a 4 by 4 matrix as a value of the parameter.
+             *
+             * @param {Number} matrix The matrix.
+             */
+            setMatrix4: function (matrix) {
+                this._gl.uniformMatrix4fv(this._glHandler, false, matrix);
+            },
+
+            /**
+             * Set a texture unit to the parameter.
+             *
+             * @param {GLenum} unit The texture unit.
+             */
+            setTexture: function (unit) {
+                this.setInt(unit - this._gl.TEXTURE0);
+            },
+
+            /**
+             * Set integer value to the uniform.
+             *
+             * @param {Number} i Value.
+             */
+            setInt: function (i) {
+                this._gl.uniform1i(this._glHandler, i);
+            },
+
+            setFloat: function (f) {
+                this._gl.uniform1f(this._glHandler, f);
+            },
+
+            setFloat2Array: function (data) {
+                this._gl.uniform2fv(this._glHandler, data);
+            },
+
+            setFloat3: function (v0, v1, v2) {
+                this._gl.uniform3f(this._glHandler, v0, v1, v2);
+            }
+        }
+    ));
+});
+
 ym.modules.define('EXT_disjoint_timer_query', [
     'Buffer',
     'GpuCpuTimeBar',
@@ -3244,9 +3244,9 @@ ym.modules.define('many_instances.instancing', [
                 instances[i]     = -10 + 0.5 * x;
                 instances[i + 1] = -10 + 0.5 * y;
                 instances[i + 2] = -10 + 0.5 * z;
-                instances[i + 3] = x / 40,
-                instances[i + 4] = y / 40,
-                instances[i + 5] = z / 40
+                instances[i + 3] = Math.random();
+                instances[i + 4] = Math.random();
+                instances[i + 5] = Math.random();
             }
         }
     }
@@ -3421,9 +3421,9 @@ ym.modules.define('many_instances.naive', [
                 instances[i]     = -10 + 0.5 * x;
                 instances[i + 1] = -10 + 0.5 * y;
                 instances[i + 2] = -10 + 0.5 * z;
-                instances[i + 3] = x / 40,
-                instances[i + 4] = y / 40,
-                instances[i + 5] = z / 40
+                instances[i + 3] = Math.random();
+                instances[i + 4] = Math.random();
+                instances[i + 5] = Math.random();
             }
         }
     }
